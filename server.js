@@ -1,6 +1,7 @@
 let express = require("express");
 let mongodbClient = require("mongodb").MongoClient;
 let mongodbObjectId = require("mongodb").ObjectId;
+let sanitizeHTML = require("sanitize-html");
 
 let app = express();
 let db;
@@ -20,6 +21,18 @@ mongodbClient.connect(
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+function passwordProtected(req, res, next) {
+  res.set("WWW-Authenticate", 'Basic realm="Simple Todo App"');
+  // username = wpstorm, password = 0601
+  if (req.headers.authorization == "Basic d3BzdG9ybTowNjAx") {
+    next();
+  } else {
+    res.status(401).send("Authentication required.");
+  }
+}
+
+app.use(passwordProtected);
 
 app.get("/", function (req, res) {
   db.collection("items")
@@ -66,19 +79,24 @@ app.get("/", function (req, res) {
 
 // Create item in DB
 app.post("/create-item", function (req, res) {
-  db.collection("items").insertOne(
-    { text: req.body.text },
-    function (err, info) {
-      res.send(info);
-    }
-  );
+  let safeText = sanitizeHTML(req.body.text, {
+    allowedTags: [],
+    allowedAttributes: {},
+  });
+  db.collection("items").insertOne({ text: safeText }, function (err, info) {
+    res.send(info);
+  });
 });
 
 // Update item in DB
 app.post("/update-item", function (req, res) {
+  let safeText = sanitizeHTML(req.body.text, {
+    allowedTags: [],
+    allowedAttributes: {},
+  });
   db.collection("items").findOneAndUpdate(
     { _id: new mongodbObjectId(req.body.id) },
-    { $set: { text: req.body.text } },
+    { $set: { text: safeText } },
     function () {
       res.send("Success");
     }
