@@ -1,12 +1,15 @@
 let express = require("express");
-let mongodb = require("mongodb").MongoClient;
+let mongodbClient = require("mongodb").MongoClient;
+let mongodbObjectId = require("mongodb").ObjectId;
 
 let app = express();
 let db;
 
+app.use(express.static("public"));
+
 let connectionString =
   "mongodb+srv://wpstorm:WKci4uEuz05dDFDF@cluster0.w4ivryt.mongodb.net/TodoApp?retryWrites=true&w=majority";
-mongodb.connect(
+mongodbClient.connect(
   connectionString,
   { useNewUrlParser: true, useUnifiedTopology: true },
   function (err, client) {
@@ -15,6 +18,7 @@ mongodb.connect(
   }
 );
 
+app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 app.get("/", function (req, res) {
@@ -49,7 +53,7 @@ app.get("/", function (req, res) {
       <li class="list-group-item list-group-item-action d-flex align-items-center justify-content-between">
         <span class="item-text">${item.text}</span>
         <div>
-          <button class="edit-me btn btn-secondary btn-sm mr-1">Edit</button>
+          <button data-id="${item._id}" class="edit-me btn btn-secondary btn-sm mr-1">Edit</button>
           <button class="delete-me btn btn-danger btn-sm">Delete</button>
         </div>
       </li>`;
@@ -59,6 +63,9 @@ app.get("/", function (req, res) {
     
   </div>
   
+  <script src="https://unpkg.com/axios@1.1.2/dist/axios.min.js"></script>
+  <script src="/browser.js"></script>
+
 </body>
 </html>
   `);
@@ -69,4 +76,14 @@ app.post("/create-item", function (req, res) {
   db.collection("items").insertOne({ text: req.body.item }, function () {
     res.redirect("/");
   });
+});
+
+app.post("/update-item", function (req, res) {
+  db.collection("items").findOneAndUpdate(
+    { _id: new mongodbObjectId(req.body.id) },
+    { $set: { text: req.body.text } },
+    function () {
+      res.send("Success");
+    }
+  );
 });
